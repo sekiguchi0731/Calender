@@ -1,12 +1,18 @@
 import { Client, middleware, MiddlewareConfig } from "@line/bot-sdk";
 import express from "express";
-import { sendLineMessage } from "./lineBot"; // sendLineMessage 関数は先ほどのコード
-import { lineConfig } from "./config";
+import { lineConfig } from "./config"; 
+import { sendLineMessage } from "./lineBot";
+
+// LINEミドルウェア用にchannelSecretだけを抽出
+const middlewareConfig: MiddlewareConfig = {
+  channelSecret: lineConfig.channelSecret, // middlewareに必要なchannelSecretのみを渡す
+};
+
 
 const app = express();
 
 // LINEからのリクエストの署名検証を行うミドルウェア
-app.use(middleware(lineConfig));
+app.use(middleware(middlewareConfig)); // middlewareConfigを利用
 
 // Webhookのエンドポイント
 app.post("/webhook", (req, res) => {

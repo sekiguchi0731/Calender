@@ -1,6 +1,13 @@
 import puppeteer from "puppeteer";
+import { getUserCredentials } from "./userStore";
 
-export const scrapeTimes = async (): Promise<string[]> => {
+export const scrapeTimes = async (lineUserId: string): Promise<string[]> => {
+  const credentials = getUserCredentials(lineUserId);
+
+  if (!credentials) {
+    throw new Error("ユーザー情報が見つかりません");
+  }
+
   const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
 
@@ -8,8 +15,8 @@ export const scrapeTimes = async (): Promise<string[]> => {
   await page.goto("https://tryworks.trygroup.co.jp/log-in");
 
   // ログイン情報を入力
-  await page.type("#teacher_code", "10210422002"); // 適切なIDに変更
-  await page.type("#password", "EahWMiro"); // 適切なIDに変更
+  await page.type("#teacher_code", credentials.username); // 適切なIDに変更
+  await page.type("#password", credentials.password); // 適切なIDに変更
 
   // ログインボタンをクリック
   await page.click('button[type="submit"]');

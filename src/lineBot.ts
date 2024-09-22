@@ -4,14 +4,25 @@ import { scrapeTimes } from "./scraper";
 
 const client = new Client(lineConfig);
 
-export const sendLineMessage = async () => {
-  const times = await scrapeTimes();
-  console.log(times);
+export const sendLineMessage = async (lineUserId: string) => {
+  try {
+    // ユーザごとにログイン
+    const times = await scrapeTimes(lineUserId);
+    console.log(times);
+    console.log(lineUserId);
 
-  const message: TextMessage = {
-    type: "text",
-    text: `スケジュールされた時間は: ${times.join(", ")}`,
-  };
+    const message: TextMessage = {
+      type: "text",
+      text: `スケジュールされた時間は: ${times.join(", ")}`,
+    };
 
-  await client.pushMessage("U13e6d5f39bb37522c52fd8c31bd512d4", message);
+    await client.pushMessage(lineUserId, message);
+  } catch (error) {
+    console.error("エラーが発生しました: ", error);
+    const errorMessage: TextMessage = {
+      type: "text",
+      text: "ログインに失敗しました。ユーザー情報を確認してください。",
+    };
+    await client.pushMessage(lineUserId, errorMessage);
+  }
 };
