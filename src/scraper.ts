@@ -1,29 +1,58 @@
 // scraper.ts
 import puppeteer from "puppeteer";
+import { askTeacherOrStudent, sendErrorMessage } from "./lineBot";
 import { findUserByLineUserId } from "./userModel";
 
-export const scrapeTimes = async (lineUserId): Promise<string[]> => {
-  const user = await findUserByLineUserId(lineUserId);
-  console.log("user情報", lineUserId);
-  console.log("user情報2", lineUserId.username);
-
+export const scrapeTimes = async (
+  lineUserId: string,
+  id: string,
+  password: string
+): Promise<string[]> => {
   const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
+  const user = await findUserByLineUserId(lineUserId);
+  if (user == null) {
+    await askTeacherOrStudent(lineUserId);
+  }
+  const proper = user.user_property;
 
   // ログインページにアクセス
-  await page.goto("https://tryworks.trygroup.co.jp/log-in");
+  if (proper === "講師") {
+    await page.goto("https://tryworks.trygroup.co.jp/log-in");
+  } else if (proper === "生徒") {
+    // 後でよしなにかえる
+    await page.goto("https://student.dailytry.trygroup.co.jp/auth/login");
+  } else {
+    await askTeacherOrStudent(lineUserId);
+  }
 
   // 保存されたユーザー情報でログイン
-  await page.type("#teacher_code", lineUserId.username);
-  await page.type("#password", lineUserId.password_hash); // ハッシュ化されたパスワードを使ってログイン
+  if (proper === "講師") {
+    await page.type("#teacher_code", id);
+    await page.type("#password", password);
+  } else if (proper === "生徒") {
+    await page.type('input[name="id"]', id);
+    await page.type('input[name="password"]', password);
+  }
 
   // ログインボタンをクリック
-  await page.click('button[type="submit"]');
+  if (proper === "講師") {
+    await page.click('button[type="submit"]');
+  } else if (proper === "生徒") {
+    await page.click("button._button_w0tr8_1");
+  }
   await page.screenshot({ path: "login-result-1.png" });
 
-  // ページ遷移後の処理
-  await page.waitForNavigation();
+  // ID, パスワードが間違えていないか確認
+  try {
+    await page.waitForNavigation();
+  } catch (error) {
+    await sendErrorMessage(lineUserId);
+    return [];
+  }
+  // 後でよしなに変える
   await page.goto("https://tryworks.trygroup.co.jp/calendar");
+  await page.waitForSelector("li.Schedules__item.-notYet");
   await page.screenshot({ path: "login-result-2.png" });
 
   const times = await page.evaluate(() => {
