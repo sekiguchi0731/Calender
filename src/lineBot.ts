@@ -7,7 +7,7 @@ const client = new Client(lineConfig);
 
 export const askTeacherOrStudent = async (lineUserId: string) => {
   try {
-    const user = findUserByLineUserId(lineUserId);
+    const user = await findUserByLineUserId(lineUserId);
     if (user == null) {
       const askMessage: TextMessage = {
         type: "text",
@@ -22,7 +22,10 @@ export const askTeacherOrStudent = async (lineUserId: string) => {
       };
       await client.pushMessage(lineUserId, properMessage);
     }
-  } catch (error) {}
+  } catch (error) {
+    const user = await findUserByLineUserId(lineUserId);
+    console.log(user)
+  }
 };
 
 export const sendLoginLink = async (lineUserId: string) => {
