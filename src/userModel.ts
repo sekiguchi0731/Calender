@@ -12,7 +12,7 @@ interface User {
 }
 
 // ユーザーをデータベースに保存（存在する場合は更新）
-export const saveUser = async (lineUserId: string, userProper: string) => {
+export const saveUserDB = async (lineUserId: string, userProper: string) => {
   // すでにユーザーが存在するか確認
   const existingUser = await findUserByLineUserId(lineUserId);
   console.log("ここだよ");
@@ -55,6 +55,12 @@ export const findUserByLineUserId = async (
     lineUserId,
   ]);
   return result.rows[0];
+};
+
+// 全ユーザーのLineユーザーIDを配列として取得
+export const findAllLineUserIds = async (): Promise<string[]> => {
+  const result = await query("SELECT line_user_id FROM users");
+  return result.rows.map(row => row.line_user_id);
 };
 
 // パスワードの検証

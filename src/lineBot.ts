@@ -1,24 +1,24 @@
 import { Client, TextMessage } from "@line/bot-sdk";
 import { lineConfig } from "./config";
 import { scrapeTimes } from "./scraper";
-import { findUserByLineUserId } from "./userModel"; // ユーザー情報を確認する関数
+import { findUserByLineUserId, saveUserDB } from "./userModel"; // ユーザー情報を確認する関数
 
 const client = new Client(lineConfig);
 
-export const askTeacherOrStudent = async (lineUserId: string) => {
+export const askName = async (lineUserId: string) => {
   try {
     const user = await findUserByLineUserId(lineUserId);
     if (user == null) {
       const askMessage: TextMessage = {
         type: "text",
-        text: "講師ですか？生徒ですか？\n「講師」または「生徒」と答えてください:",
+        text: "あなたの名前を「名前は」の後ろに続けて教えてください。\n例：名前は山田太郎:",
       };
       await client.pushMessage(lineUserId, askMessage);
     } else {
       const proper = (await user).user_property;
       const properMessage: TextMessage = {
         type: "text",
-        text: `あなたは現在 ${proper} として登録されています。\n変更したい場合は、「講師」または「生徒」と入力してください。\n予定を確認したい場合は、「カレンダー」または「ログイン」と入力してください。`,
+        text: `あなたは現在 ${proper} として登録されています。\n変更したい場合は、「名前は」に続けて名前を入力してください。\n予定を確認したい場合は、「カレンダー」または「ログイン」と入力してください。`,
       };
       await client.pushMessage(lineUserId, properMessage);
     }
@@ -28,39 +28,38 @@ export const askTeacherOrStudent = async (lineUserId: string) => {
   }
 };
 
-export const sendLoginLink = async (lineUserId: string) => {
-  try {
-    const message1: TextMessage = {
-      type: "text",
-      text: "ログインIDとパスワードを以下のフォーマットで送信してください:",
-    };
-    await client.pushMessage(lineUserId, message1);
-    const message2: TextMessage = {
-      type: "text",
-      text: "ID: your_id\nPW: your_password",
-    };
-    await client.pushMessage(lineUserId, message2);
-  } catch (error) {
-    console.error("エラーが発生しました (sendLoginLink):", error);
-  }
-};
 
-export const checkAndSendCalenderInfo = async (
-  lineUserId: string,
-  messageText: string
-) => {
-  const [idLine, pwLine] = messageText.split("\n");
-  const id = idLine.split("ID: ")[1];
-  const password = pwLine.split("PW: ")[1];
-
-  if (id && password) {
+export const saveName = async (lineUserId: string, messageText: string) => {
+  const name = messageText.split("名前は")[1];
+  if (name) {
     const successMessage: TextMessage = {
       type: "text",
-      text: "ログイン情報が確認されました。",
+      text: `あなたの名前を ${name} として保存しています...`,
     };
     await client.pushMessage(lineUserId, successMessage);
+    await saveUserDB(lineUserId, name)
+  } else {
+    const errorMessage: TextMessage = {
+      type: "text",
+      text: "名前の形式が正しくありません。もう一度試してください。",
+    };
+    await client.pushMessage(lineUserId, errorMessage);
+    await askName(lineUserId)
+  }
+}
+
+export const sendCalender = async (
+  lineUserId: string,
+) => {
+  const user = await findUserByLineUserId(lineUserId)
+  const name = (await user).user_property
+  console.log("enter sendCalender")
+
+  if (name) {
     // スケジュールをスクレイピングしてユーザーに送信
-    const times = await scrapeTimes(lineUserId, id, password);
+    console.log("there is name")
+    const times = await scrapeTimes(lineUserId);
+    console.log("times;", times)
     if (times.length > 0) {
       const scheduleMessage: TextMessage = {
         type: "text",
@@ -77,10 +76,10 @@ export const checkAndSendCalenderInfo = async (
   } else {
     const errorMessage: TextMessage = {
       type: "text",
-      text: "IDとパスワードの形式が正しくありません。もう一度試してください。",
+      text: "名前が登録されていません。",
     };
     await client.pushMessage(lineUserId, errorMessage);
-    await sendLoginLink(lineUserId);
+    await askName(lineUserId)
   }
 };
 
@@ -111,3 +110,12 @@ export const sendErrorMessage = async (lineUserId: string) => {
   };
   client.pushMessage(lineUserId, errorMessage);
 };
+
+export const sendRegularlyCalender = async (lineUserId: string) => {
+  const regularMessage: TextMessage = {
+    type: "text",
+    text: "テストメッセージ\n",
+  };
+  client.pushMessage(lineUserId, regularMessage)
+  await sendCalender(lineUserId)
+}

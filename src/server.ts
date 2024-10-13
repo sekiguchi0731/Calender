@@ -1,8 +1,9 @@
-import { Client, middleware, MiddlewareConfig } from "@line/bot-sdk";
+import { middleware, MiddlewareConfig } from "@line/bot-sdk";
 import express from "express";
 import { lineConfig } from "./config";
-import { askTeacherOrStudent, checkAndSendCalenderInfo, sendLoginLink } from "./lineBot"; // 必要な関数をインポート
-import { saveUser } from "./userModel";
+import { askName, saveName, sendCalender, sendRegularlyCalender } from "./lineBot"; // 必要な関数をインポート
+import cron from "node-cron";
+import { findAllLineUserIds } from "./userModel";
 
 const app = express();
 
@@ -27,21 +28,35 @@ app.post("/webhook", async (req, res) => {
 
       if (userMessage === "カレンダー") {
         // 「カレンダー」と送信された場合、カレンダー情報を送信
-        await sendLoginLink(lineUserId);
+        await sendCalender(lineUserId);
       } else if (userMessage === "ログイン") {
-        await sendLoginLink(lineUserId);
-      } else if (userMessage.startsWith("ID:") && userMessage.includes("PW:")) {
-        await checkAndSendCalenderInfo(lineUserId, userMessage);
+        await askName(lineUserId);
+      } else if (userMessage.startsWith("名前は")) {
+        await saveName(lineUserId, userMessage);
         console.log(userMessage);
-      } else if (userMessage === "講師" || userMessage === "生徒") {
-        await saveUser(lineUserId, userMessage)
       } else {
-        await askTeacherOrStudent(lineUserId)
+        await askName(lineUserId);
       }
     }
   }
 
   res.sendStatus(200);
+});
+
+// 毎日18:00に「こんにちは」を送信
+cron.schedule("10 19 * * 0", async () => {
+  try {
+    // DBからすべてのline_user_idを取得
+    const lineUserIds = await findAllLineUserIds();
+
+    // 各ユーザーにメッセージを送信
+    for (const lineUserId of lineUserIds) {
+      await sendRegularlyCalender(lineUserId);
+    }
+    console.log("Messages sent successfully.");
+  } catch (error) {
+    console.error("Error sending messages:", error);
+  }
 });
 
 // サーバー起動
